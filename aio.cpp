@@ -28,13 +28,18 @@ aio_init() is called with buffered_io = true.
 #include <stdio.h>
 #include <string.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #define _CRT_SECURE_NO_WARNINGS
 
 #ifdef WINDOWS
-    #define handle_type HANDLE
+#define handle_type HANDLE
     #include <windows.h>
 #else
-    #define handle_type FILE *
+#define handle_type int
 #endif
 
 static size_t largest_request_pub;
@@ -42,10 +47,16 @@ static bool buffering = true;
 
 // read
 #ifdef WINDOWS
-  static size_t avail;
+static size_t avail;
   static size_t src;
 #endif
+
+#ifdef WINDOWS
 static handle_type ifile;
+#else
+static handle_type ifile = -1;
+#endif
+
 static char *read_buffer = 0;
 
 // write
@@ -53,10 +64,15 @@ static char *write_buffer = 0;
 static char *io_commit = 0;
 
 #ifdef WINDOWS
-  static size_t queued = 0;
+static size_t queued = 0;
 #endif
 
+#ifdef WINDOWS
 static handle_type ofile;
+#else
+static handle_type ofile = -1;
+#endif
+
 static unsigned long long written;
 static char destination_file[5000];
 static unsigned long long last_extended_to = 0;
@@ -96,7 +112,7 @@ size_t FREAD(void *DstBuf, size_t Count, handle_type File)
     }
     return cn;
 #else
-    return fread(DstBuf, 1, Count, File);
+    return read(File, DstBuf, Count);
 #endif
 }
 
@@ -160,7 +176,7 @@ void aclose_read(void)
 #ifdef WINDOWS
     CloseHandle(ifile);
 #else
-    fclose(ifile);
+    close(ifile);
 #endif
 }
 
@@ -192,12 +208,12 @@ bool aopen_read(const char *file)
 #else
     if(strcmp(file, "<stdin>") == 0)
     {
-        ifile = stdin;
+        ifile = 0;
         return true;
     }
     else
     {
-        ifile = fopen(file, "rb");
+        ifile = open(file, O_RDONLY);
         return (ifile != 0);
     }
 #endif
@@ -211,7 +227,7 @@ size_t FWRITE(const void *Str, size_t Count, handle_type File)
     WriteFile(File, Str, (DWORD)Count, &dummy, 0);
     return (size_t)dummy;
 #else
-    return fwrite(Str, 1, Count, File);
+    return write(File, Str, Count);
 #endif
 }
 
@@ -314,8 +330,8 @@ bool aclose_write(void)
         }
     }
 #else
-	if(ofile != 0)
-	    fclose(ofile);
+    if(ofile >= 0)
+        close(ofile);
     return true;
 #endif
 }
@@ -346,13 +362,13 @@ bool aopen_write(const char *file)
 #else
     if(strcmp(file, "<stdout>") == 0)
     {
-        ofile = stdout;
+        ofile = 1;
         return true;
     }
     else
     {
-        ofile = fopen(file, "wb");
-        return (ofile != 0);
+        ofile = open(file, O_WRONLY|O_SYNC|O_CREAT|O_TRUNC);
+        return (ofile != -1);
     }
 #endif
 }
