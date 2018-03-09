@@ -114,6 +114,7 @@ using namespace std;
   #include <sys/stat.h>
   #include <sys/time.h>
   #include <sys/types.h>
+  #include <stdio.h>
 #endif
 
 #if QLZ_STREAMING_BUFFER != 0
@@ -720,6 +721,11 @@ void *decompress_file_thread(void *arg)
             }
         }
         chunks_written++;
+        //add by zhaokeke，in order to limited by cgroup.
+        if(chunks_written%100==0){
+            file_sync();
+        }
+
         if(!just_recovered_block)
         {
             payload_counter += decomp_size;

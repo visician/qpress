@@ -16,6 +16,7 @@ bool aopen_read(const char *file);
 bool aopen_write(const char *file);
 void aclose_read(void);
 bool aclose_write(void);
+bool file_sync();
 unsigned long long awritten(void);
 bool aio_init(size_t chunk_size, bool buffered_io);
 size_t try_awrite(const void *Str, size_t Count);
