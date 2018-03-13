@@ -321,11 +321,15 @@ bool aclose_write(void)
 #endif
 }
 bool file_sync(){
+#ifdef WINDOWS
+    return true;
+#else
     if(ofile==stdout){
         return true;
     }
     fsync(fileno(ofile));
     return true;
+#endif
 }
 
 bool aopen_write(const char *file)
